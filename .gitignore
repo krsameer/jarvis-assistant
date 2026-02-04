@@ -1,0 +1,25 @@
+# Add to .gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+.env
+.vscode/
+.idea/
+*.log
+.DS_Store
+.ipynb_checkpoints/
+*.swp
+*.swo
+*~
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
