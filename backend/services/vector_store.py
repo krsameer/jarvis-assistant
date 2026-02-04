@@ -3,7 +3,8 @@ Vector Store Service - Pinecone Integration
 Handles storage and retrieval of embeddings using Pinecone vector database.
 """
 
-from pinecone import Pinecone, ServerlessSpec
+from pinecone.grpc import PineconeGRPC as Pinecone
+from pinecone import ServerlessSpec
 from typing import List, Dict, Optional, Tuple
 import uuid
 import time
@@ -63,10 +64,9 @@ class VectorStore:
         """
         try:
             # List existing indexes
-            existing_indexes = self.pc.list_indexes()
-            index_names = [idx.name for idx in existing_indexes]
+            existing_indexes = [idx['name'] for idx in self.pc.list_indexes()]
             
-            if self.index_name not in index_names:
+            if self.index_name not in existing_indexes:
                 print(f"Creating new Pinecone index: {self.index_name}")
                 
                 # Create index with serverless spec (recommended for most use cases)
@@ -76,7 +76,7 @@ class VectorStore:
                     metric=self.metric,
                     spec=ServerlessSpec(
                         cloud='aws',
-                        region=self.environment.split('-')[0:3]  # Extract region
+                        region='us-east-1'
                     )
                 )
                 

@@ -1,30 +1,22 @@
-# FastAPI Backend
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
+# FastAPI Backend (latest compatible versions)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
 
-# LLM and Embeddings
-ollama==0.1.6
-sentence-transformers==2.5.1
-torch>=2.2.0
+# LLM and Embeddings (lightweight - no torch)
+ollama>=0.1.6
 
 # Vector Database
-pinecone-client==3.0.2
+pinecone-client>=3.0.0
 
 # Utilities
-httpx==0.26.0
-requests==2.31.0
+httpx>=0.26.0
+requests>=2.31.0
 
 # Frontend
-streamlit==1.30.0
+streamlit>=1.30.0
 
-# Text Processing
-langchain==0.1.6
-langchain-community==0.0.17
-tiktoken==0.5.2
-
-# Optional: for better text processing
-beautifulsoup4==4.12.3
-pypdf==4.0.1
+# Text Processing (minimal)
+numpy>=1.24.0
