@@ -1,62 +1,73 @@
 """
 Embedding Service
-Generates vector embeddings for text using sentence-transformers.
+Generates vector embeddings for text using Ollama embeddings API (lightweight alternative).
 """
 
-from sentence_transformers import SentenceTransformer
+import httpx
 from typing import List, Union
 import numpy as np
 
 
 class EmbeddingService:
     """
-    Service for generating text embeddings.
+    Service for generating text embeddings using Ollama.
     
     Embeddings are vector representations of text that capture semantic meaning.
     Similar texts will have similar embeddings (closer in vector space).
     
-    Why sentence-transformers?
-    - Specifically trained for semantic similarity
-    - Efficient and fast
+    Why Ollama embeddings?
+    - No need for PyTorch (lightweight)
+    - Uses the same model infrastructure
     - Works well with Pinecone
-    - Can run locally (no API calls)
+    - Can run locally (no API calls to external services)
     """
     
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(
+        self, 
+        model_name: str = "nomic-embed-text",
+        base_url: str = "http://localhost:11434"
+    ):
         """
         Initialize the embedding service.
         
         Args:
-            model_name: HuggingFace model identifier
-                       Default model (all-MiniLM-L6-v2):
-                       - Dimension: 384
-                       - Fast and efficient
-                       - Good for most use cases
+            model_name: Ollama embedding model
+            base_url: Ollama API endpoint
         """
         self.model_name = model_name
-        self.model = None
-        self._dimension = None
+        self.base_url = base_url.rstrip('/')
+        self._dimension = 768  # nomic-embed-text dimension
+        self.timeout = httpx.Timeout(60.0, connect=10.0)
         
-        # Load model lazily
-        self._load_model()
+        print(f"Using Ollama embeddings: {self.model_name}")
+        print(f"Embedding dimension: {self._dimension}")
     
-    def _load_model(self):
+    async def _get_embedding(self, text: str) -> List[float]:
         """
-        Load the sentence transformer model.
+        Get embedding from Ollama API.
         
-        This downloads the model from HuggingFace on first run.
-        Subsequent runs load from cache.
+        Args:
+            text: Text to embed
+            
+        Returns:
+            Embedding vector
         """
-        print(f"Loading embedding model: {self.model_name}")
         try:
-            self.model = SentenceTransformer(self.model_name)
-            # Get embedding dimension
-            self._dimension = self.model.get_sentence_embedding_dimension()
-            print(f"Model loaded successfully. Embedding dimension: {self._dimension}")
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={
+                        "model": self.model_name,
+                        "prompt": text
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+                return result["embedding"]
         except Exception as e:
-            raise Exception(f"Failed to load embedding model: {str(e)}")
+            raise Exception(f"Embedding API error: {str(e)}")
     
-    def embed_text(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
+    async def embed_text(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
         """
         Generate embeddings for text.
         
@@ -71,29 +82,18 @@ class EmbeddingService:
         Returns:
             Single embedding vector or list of embedding vectors
         """
-        if not self.model:
-            raise Exception("Model not loaded")
-        
         try:
             # Handle single string
             if isinstance(text, str):
-                embedding = self.model.encode(
-                    text,
-                    convert_to_numpy=True,
-                    normalize_embeddings=True  # L2 normalization for better similarity
-                )
-                return embedding.tolist()
+                return await self._get_embedding(text)
             
             # Handle list of strings (batch processing)
             elif isinstance(text, list):
-                embeddings = self.model.encode(
-                    text,
-                    convert_to_numpy=True,
-                    normalize_embeddings=True,
-                    batch_size=32,  # Process in batches for efficiency
-                    show_progress_bar=len(text) > 10  # Show progress for large batches
-                )
-                return embeddings.tolist()
+                embeddings = []
+                for t in text:
+                    embedding = await self._get_embedding(t)
+                    embeddings.append(embedding)
+                return embeddings
             
             else:
                 raise ValueError("Text must be a string or list of strings")
@@ -101,7 +101,7 @@ class EmbeddingService:
         except Exception as e:
             raise Exception(f"Embedding generation failed: {str(e)}")
     
-    def embed_query(self, query: str) -> List[float]:
+    async def embed_query(self, query: str) -> List[float]:
         """
         Generate embedding for a search query.
         
@@ -114,9 +114,9 @@ class EmbeddingService:
         Returns:
             Query embedding vector
         """
-        return self.embed_text(query)
+        return await self.embed_text(query)
     
-    def embed_documents(self, documents: List[str]) -> List[List[float]]:
+    async def embed_documents(self, documents: List[str]) -> List[List[float]]:
         """
         Generate embeddings for multiple documents (batch operation).
         
@@ -132,7 +132,7 @@ class EmbeddingService:
         if not documents:
             return []
         
-        return self.embed_text(documents)
+        return await self.embed_text(documents)
     
     def get_embedding_dimension(self) -> int:
         """
@@ -183,18 +183,22 @@ class EmbeddingService:
         return {
             "model_name": self.model_name,
             "dimension": self._dimension,
-            "max_sequence_length": self.model.max_seq_length if self.model else None
+            "base_url": self.base_url
         }
 
 
-def create_embedding_service(model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> EmbeddingService:
+def create_embedding_service(
+    model_name: str = "nomic-embed-text",
+    base_url: str = "http://localhost:11434"
+) -> EmbeddingService:
     """
     Factory function to create an embedding service instance.
     
     Args:
-        model_name: HuggingFace model identifier
+        model_name: Ollama embedding model
+        base_url: Ollama API endpoint
         
     Returns:
         Configured EmbeddingService instance
     """
-    return EmbeddingService(model_name=model_name)
+    return EmbeddingService(model_name=model_name, base_url=base_url)

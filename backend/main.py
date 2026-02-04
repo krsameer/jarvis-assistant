@@ -202,8 +202,8 @@ async def health_check():
             services_status["vector_store"] = False
             overall_healthy = False
         
-        # Check embedding service
-        services_status["embedding"] = rag_service.embedding_service.model is not None
+        # Check embedding service (using Ollama API)
+        services_status["embedding"] = rag_service.embedding_service._dimension is not None
         overall_healthy &= services_status["embedding"]
         
         return HealthResponse(
