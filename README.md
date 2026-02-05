@@ -2,6 +2,20 @@
 
 A demo implementation of a RAG-powered AI assistant using self-hosted LLM, FastAPI, Pinecone, and Streamlit.
 
+## Screenshots
+
+### Dashboard
+![Landing](screenshots/LandingPage.png)
+
+### LLama3 Model
+![Llama3](screenshots/Llama3Model.png)
+
+### JsonOutput
+![Json](screenshots/JsonOutput.png)
+
+### RunningOverNetwork
+![OverNetwork](screenshots/OverNetwork.png)
+
 ## 🏗️ System Architecture
 
 ```
