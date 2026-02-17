@@ -79,7 +79,7 @@ class RAGService:
             
             # Generate embeddings in batches for efficiency
             print(f"Generating embeddings for {len(texts)} chunks...")
-            embeddings = self.embedding_service.embed_documents(texts)
+            embeddings = await self.embedding_service.embed_documents(texts)
             
             # Store in vector database
             print(f"Storing embeddings in Pinecone...")
@@ -126,7 +126,7 @@ class RAGService:
         """
         try:
             # Generate query embedding
-            query_embedding = self.embedding_service.embed_query(query)
+            query_embedding = await self.embedding_service.embed_query(query)
             
             # Search vector database
             results = self.vector_store.query(
