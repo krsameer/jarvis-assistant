@@ -20,3 +20,4 @@ streamlit>=1.30.0
 
 # Text Processing (minimal)
 numpy>=1.24.0
+pypdf>=4.0.0
