@@ -6,6 +6,7 @@ Simple, clean interface for interacting with the RAG system.
 import streamlit as st
 import requests
 import json
+import io
 from typing import List, Dict
 
 # ============================================================================
@@ -88,6 +89,32 @@ def get_system_stats() -> Dict:
         return {}
 
 
+def extract_text_from_file(uploaded_file) -> str:
+    """Extract plain text from an uploaded file (PDF or TXT)."""
+    filename = uploaded_file.name.lower()
+
+    if filename.endswith(".txt"):
+        return uploaded_file.read().decode("utf-8", errors="replace")
+
+    elif filename.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(uploaded_file.read()))
+            pages = []
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    pages.append(text)
+            if not pages:
+                raise ValueError("No extractable text found in PDF. The file may be scanned/image-based.")
+            return "\n\n".join(pages)
+        except ImportError:
+            raise RuntimeError("pypdf is not installed. Run: pip install pypdf")
+
+    else:
+        raise ValueError(f"Unsupported file type: '{uploaded_file.name}'. Supported: PDF, TXT.")
+
+
 # ============================================================================
 # STREAMLIT UI
 # ============================================================================
@@ -123,43 +150,69 @@ def render_sidebar():
         # Document ingestion
         st.subheader("📄 Add Knowledge")
         
-        with st.form("ingest_form"):
-            st.markdown("Upload documents to the knowledge base:")
-            
-            # Text input
-            doc_text = st.text_area(
-                "Document Text",
-                height=150,
-                placeholder="Paste your document content here..."
+        upload_tab, paste_tab = st.tabs(["📁 Upload File", "📝 Paste Text"])
+
+        with upload_tab:
+            uploaded_file = st.file_uploader(
+                "Upload a PDF or TXT file",
+                type=["pdf", "txt"],
+                help="Drop a PDF or plain-text file here"
             )
-            
-            # Metadata
+
             col1, col2 = st.columns(2)
             with col1:
-                doc_source = st.text_input("Source", placeholder="e.g., policy.pdf")
+                up_source = st.text_input("Source label", placeholder="e.g., policy.pdf", key="up_source")
             with col2:
-                doc_type = st.text_input("Type", placeholder="e.g., policy")
-            
-            # Submit button
-            submit = st.form_submit_button("📤 Ingest Document", use_container_width=True)
-            
-            if submit:
-                if not doc_text or len(doc_text.strip()) < 10:
-                    st.error("Please provide valid document text (minimum 10 characters)")
-                else:
-                    with st.spinner("Processing document..."):
-                        metadata = {}
-                        if doc_source:
-                            metadata["source"] = doc_source
-                        if doc_type:
-                            metadata["type"] = doc_type
-                        
-                        result = ingest_document(doc_text, metadata)
-                        
-                        if result.get("status") == "success":
-                            st.success(f"✅ Ingested {result.get('chunks_processed', 0)} chunks!")
-                        else:
-                            st.error(f"❌ Error: {result.get('message', 'Unknown error')}")
+                up_type = st.text_input("Type", placeholder="e.g., policy", key="up_type")
+
+            if uploaded_file is not None:
+                if st.button("📤 Ingest File", use_container_width=True, key="btn_file"):
+                    with st.spinner("Extracting text and ingesting..."):
+                        try:
+                            doc_text = extract_text_from_file(uploaded_file)
+                            metadata = {"source": up_source or uploaded_file.name, "type": up_type or "document"}
+                            result = ingest_document(doc_text, metadata)
+                            if result.get("status") == "success":
+                                st.success(f"✅ Ingested {result.get('chunks_processed', 0)} chunks from '{uploaded_file.name}'!")
+                            else:
+                                st.error(f"❌ Ingestion error: {result.get('message', 'Unknown error')}")
+                        except Exception as e:
+                            st.error(f"❌ {e}")
+
+        with paste_tab:
+            with st.form("ingest_form"):
+                doc_text = st.text_area(
+                    "Document Text",
+                    height=150,
+                    placeholder="Paste your document content here..."
+                )
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    doc_source = st.text_input("Source", placeholder="e.g., policy.pdf")
+                with col2:
+                    doc_type = st.text_input("Type", placeholder="e.g., policy")
+
+                submit = st.form_submit_button("📤 Ingest Text", use_container_width=True)
+
+                if submit:
+                    if not doc_text or len(doc_text.strip()) < 10:
+                        st.error("Please provide valid document text (minimum 10 characters)")
+                    else:
+                        with st.spinner("Processing document..."):
+                            metadata = {}
+                            if doc_source:
+                                metadata["source"] = doc_source
+                            if doc_type:
+                                metadata["type"] = doc_type
+
+                            result = ingest_document(doc_text, metadata)
+
+                            if result.get("status") == "success":
+                                st.success(f"✅ Ingested {result.get('chunks_processed', 0)} chunks!")
+                            else:
+                                st.error(f"❌ Error: {result.get('message', 'Unknown error')}")
+
         
         st.divider()
         
