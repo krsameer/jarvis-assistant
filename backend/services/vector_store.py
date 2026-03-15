@@ -249,11 +249,22 @@ class VectorStore:
         
         try:
             stats = self.index.describe_index_stats()
+            # Convert namespaces to a plain JSON-serializable dict
+            namespaces = {}
+            if stats.namespaces:
+                for ns_name, ns_summary in stats.namespaces.items():
+                    try:
+                        namespaces[ns_name] = {
+                            "vector_count": getattr(ns_summary, "vector_count", 0)
+                        }
+                    except Exception:
+                        namespaces[ns_name] = {}
+
             return {
                 "total_vector_count": stats.total_vector_count,
                 "dimension": stats.dimension,
-                "index_fullness": stats.index_fullness,
-                "namespaces": dict(stats.namespaces) if stats.namespaces else {}
+                "index_fullness": float(stats.index_fullness) if stats.index_fullness is not None else 0.0,
+                "namespaces": namespaces
             }
         except Exception as e:
             raise Exception(f"Failed to get index stats: {str(e)}")
