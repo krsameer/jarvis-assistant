@@ -5,6 +5,7 @@ Entry point for the Jarvis AI Assistant API.
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
@@ -348,7 +349,7 @@ async def chat(request: ChatRequest):
         )
 
 
-@app.get("/stats", response_model=StatsResponse, tags=["Statistics"])
+@app.get("/stats", tags=["Statistics"])
 async def get_stats():
     """
     Get system statistics and configuration.
@@ -361,7 +362,7 @@ async def get_stats():
     """
     try:
         stats = rag_service.get_stats()
-        return StatsResponse(**stats)
+        return JSONResponse(content=stats)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
